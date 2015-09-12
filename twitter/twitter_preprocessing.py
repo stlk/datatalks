@@ -16,10 +16,10 @@ import nltk
 import re
 import time
 from collections import defaultdict
-from configparser import ConfigParser
 from gensim import corpora, models, similarities
 from nltk.tokenize import RegexpTokenizer
-from pymongo import MongoClient
+import psycopg2
+import psycopg2.extras
 from string import digits
 
 
@@ -27,13 +27,16 @@ def filter_lang(lang, documents):
     doclang = [  langid.classify(doc) for doc in documents ]
     return [documents[k] for k in range(len(documents)) if doclang[k][0] == lang]
 
-# connect to the MongoDB
-client      = MongoClient()
-db          = client['twitter']
+
+conn = psycopg2.connect("dbname=twitter user=pc")
+cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+cur.execute("SELECT * FROM tweets")
+tweets = cur.fetchall()
 
 # Load documents and followers from db
 # Filter out non-english timelines and TL with less than 2 tweets
-documents    = [tw['raw_text'] for tw in db.tweets.find()
+documents    = [tw['raw_text'] for tw in tweets
                     if ('lang' in tw.keys()) and (tw['lang'] in ('en','und'))
                         and ('n_tweets' in tw.keys()) and (tw['n_tweets'] > 2) ]
 
@@ -113,5 +116,3 @@ corpus = [dictionary.doc2bow(doc) for doc in documents]
 # and save in Market Matrix format
 corpora.MmCorpus.serialize('alexip_followers_py27.mm', corpus)
 # this corpus can be loaded with corpus = corpora.MmCorpus('alexip_followers.mm')
-
-

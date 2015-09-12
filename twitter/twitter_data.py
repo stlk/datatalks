@@ -8,9 +8,9 @@ Python: 3.4
 '''
 
 import sys, time
-from configparser import ConfigParser
-from pymongo import MongoClient
-from twython import Twython, TwythonRateLimitError
+import psycopg2
+import psycopg2.extras
+from twython import Twython, TwythonRateLimitError, TwythonAuthError
 
 # This function allows us to check the remaining statuses and applications
 # limits imposed by twitter.
@@ -39,23 +39,20 @@ def handle_rate_limiting():
 #  Twitter Connection
 # ---------------------------------------------------------
 
-config = ConfigParser()
-config.read('twitter.cfg')
-APP_KEY      = config['credentials']['app_key']
-APP_SECRET   = config['credentials']['app_secret']
-ACCESS_TOKEN = config['credentials']['access_token_oauth_2']
+APP_KEY      = 't9q9gpzY7fUmpQZYZR7TMYj9t'
+APP_SECRET   = 'Rjd5ul0FGhXvFvyVbRIiSpodkpDjmNWy6uedjmyjLDfBQvt0h4'
 
 twitter     = Twython(APP_KEY, APP_SECRET, oauth_version=2)
+ACCESS_TOKEN = twitter.obtain_access_token()
 twitter     = Twython(APP_KEY, access_token=ACCESS_TOKEN)
 
 # ---------------------------------------------------------
 #  MongoDB connection
 # ---------------------------------------------------------
-DBNAME      = config['database']['name']
-client      = MongoClient()
-db          = client[DBNAME]
+conn = psycopg2.connect("dbname=twitter user=pc")
+cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-screen_name  = 'alexip'     # The main twitter account
+screen_name  = 'josefrousek'     # The main twitter account
 n_max_folwrs = 700          # The number of followers to consider
 
 # ---------------------------------------------------------
@@ -67,61 +64,66 @@ flwrs   = twitter.get_followers_ids(screen_name = screen_name,
 flw_ids = flwrs['ids']
 flw_ids.sort()
 
-# insert follower_ids in db
-db.followers.insert_one({"follower_ids": flw_ids, "user": "alexip"})
-
 # ---------------------------------------------------------
 #  Get 200 tweets per follower
 #  (200 is the maximum number of tweets imposed by twitter)
 # ---------------------------------------------------------
+
+cur.execute("""DELETE FROM followers""")
+
 for id in flw_ids:
+    cur.execute("""INSERT INTO followers(id) VALUES (%s)""", (id, ))
     try:
         # only retrieve tweets for user if we don't have them in store already
-        twt = db.tweets.find({'user_id':id})
+        cur.execute("SELECT * FROM tweets WHERE user_id = %s", (id, ))
+        twt = cur.fetchall()
         handle_rate_limiting()
         params = {'user_id': id, 'count': 200, 'contributor_details': 'true' }
-        tl = twitter.get_user_timeline(**params)
+        try:
+            tl = twitter.get_user_timeline(**params)
+        except TwythonAuthError as e:
+            pass
         # aggregate tweets
         text = ' '.join( [tw['text'] for tw in tl])
+        try:
+            item = {
+                'raw_text': text,
+                'user_id': id,
+                'n_tweets': len(tl),
+                'screen_name': tl[0]['user']['screen_name'],
+                'lang': tl[0]['lang'],
+            }
+        except:
+            pass
 
-        item = {
-            'raw_text': text,
-            'user_id': id,
-            'n_tweets': len(tl),
-            'screen_name': tl[0]['user']['screen_name'],
-            'lang': tl[0]['lang'],
-        }
 
-        if twt.count() == 0:
+        if len(twt) == 0:
             # store document
-            tweets.insert_one(item)
+            cur.execute("""INSERT INTO tweets(raw_text,user_id,n_tweets,screen_name,lang) VALUES (%(raw_text)s, %(user_id)s, %(n_tweets)s, %(screen_name)s, %(lang)s)""", item)
         else:
             # update the record
-            res = db.tweets.replace_one( {'user_id':id}, item )
-            if res.matched_count == 0:
-                print("no match for id: ",id)
-            else:
-                if res.modified_count == 0:
-                    print("no modification for id: ",id)
-                else:
-                    print("replaced id ",tl[0]['user']['screen_name'],
-                            id,len(tl), tl[0]['lang'] )
+            cur.execute("""UPDATE tweets SET raw_text=%(raw_text)s, n_tweets=%(n_tweets)s, screen_name=%(screen_name)s, lang=%(lang)s WHERE user_id=%(user_id)s""", item)
+            print("replaced id ", tl[0]['user']['screen_name'], id, len(tl), tl[0]['lang'])
     except TwythonRateLimitError as e:
         # Wait if we hit the Rate limit
         reset = int(twitter.get_lastfunction_header('x-rate-limit-reset'))
         wait = max(reset - time.time(), 0) + 10 # addding 10 second pad
         print("[Exception Raised] Rate limit exceeded waiting: %s", wait)
         time.sleep(wait)
-    except:
-        print(" FAILED:", id)
-        print("Unexpected error:", sys.exc_info()[0])
-        pass
+    # except:
+    #     print(" FAILED:", id)
+    #     print("Unexpected error:", sys.exc_info()[0])
+
+conn.commit()
 
 # ---------------------------------------------------------
 #  check how many documents we now have in the Database
 # ---------------------------------------------------------
-follower_docs = db.tweets.find()
-documents    = [tw['raw_text']  for tw in follower_docs]
+
+cur.execute("SELECT * FROM tweets")
+follower_docs = cur.fetchall()
+
+documents = [tw['raw_text'] for tw in follower_docs]
 print("We have " + str(len(documents)) + " documents ")
 
 n_tweets = sum([tw['n_tweets']  for tw in follower_docs if 'n_tweets' in tw.keys()])
