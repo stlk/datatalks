@@ -22,6 +22,9 @@ import psycopg2
 import psycopg2.extras
 from string import digits
 
+import psycopg2.extensions
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 def filter_lang(lang, documents):
     doclang = [  langid.classify(doc) for doc in documents ]
