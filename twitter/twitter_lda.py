@@ -9,7 +9,7 @@ mm = gensim.corpora.MmCorpus('alexip_followers_py27.mm')
 
 print(mm)
 
-lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=10, update_every=1, chunksize=10000, passes=100)
+lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=40, alpha=0.001, eval_every=5, passes=100)
 
 lda.print_topics(20)
 
