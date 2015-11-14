@@ -1,0 +1,4 @@
+gensim
+pyLDAvis
+jupyter
+notebook
