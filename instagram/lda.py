@@ -1,7 +1,7 @@
 '''
 Train the LDA model from processed data
 
-Python 2.7
+Python 3.x
 '''
 
 import logging, gensim
