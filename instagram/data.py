@@ -5,7 +5,7 @@ The data is stored in a Postgres database.
 Python: 3.x
 '''
 
-import sys, time
+import sys, time, os
 import psycopg2
 import psycopg2.extras
 from instagram.client import InstagramAPI
