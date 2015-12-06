@@ -15,6 +15,7 @@ import langid
 import nltk
 import re
 import time
+import getpass
 from collections import defaultdict
 from gensim import corpora, models, similarities
 from nltk.tokenize import RegexpTokenizer
@@ -26,7 +27,7 @@ import psycopg2.extensions
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
-conn = psycopg2.connect("dbname=instagram_lda user=pc")
+conn = psycopg2.connect("dbname=instagram_lda user=%s" % (getpass.getuser(), ))
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 cur.execute("SELECT * FROM media")

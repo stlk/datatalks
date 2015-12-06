@@ -6,6 +6,7 @@ Python: 3.x
 '''
 
 import sys, time, os
+import getpass
 import psycopg2
 import psycopg2.extras
 from instagram.client import InstagramAPI
@@ -21,7 +22,7 @@ api = InstagramAPI(access_token=access_token, client_secret=client_secret)
 # ---------------------------------------------------------
 #  Postgres connection
 # ---------------------------------------------------------
-conn = psycopg2.connect("dbname=instagram_lda user=pc")
+conn = psycopg2.connect("dbname=instagram_lda user=%s" % (getpass.getuser(), ))
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 # ---------------------------------------------------------
