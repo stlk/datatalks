@@ -2,3 +2,4 @@ langid
 nltk
 python-instagram
 psycopg2
+gensim

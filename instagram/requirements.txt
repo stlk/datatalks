@@ -2,3 +2,4 @@ gensim
 pyLDAvis
 jupyter
 notebook
+nose
