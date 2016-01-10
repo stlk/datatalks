@@ -3,3 +3,5 @@ pyLDAvis
 jupyter
 notebook
 nose
+psycopg2
+scikit-learn
