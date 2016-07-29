@@ -22,6 +22,7 @@ from nltk.tokenize import RegexpTokenizer
 import psycopg2
 import psycopg2.extras
 from string import digits
+from stopwords_czech import stopwords_czech
 
 import psycopg2.extensions
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
@@ -64,7 +65,7 @@ stoplist_tw=['amp','get','got','hey','hmm','hoo','hop','iep','let','ooo','par',
 unigrams = [ w for doc in documents for w in doc if len(w)==1]
 bigrams  = [ w for doc in documents for w in doc if len(w)==2]
 
-stoplist  = set(nltk.corpus.stopwords.words("english") + stoplist_tw
+stoplist  = set(nltk.corpus.stopwords.words("english") + stoplist_tw + stopwords_czech
                 + unigrams + bigrams)
 documents = [[token for token in doc if token not in stoplist]
                 for doc in documents]
