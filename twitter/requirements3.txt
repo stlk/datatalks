@@ -1,0 +1,5 @@
+langid
+nltk
+twython
+psycopg2
+gensim

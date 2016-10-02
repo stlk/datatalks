@@ -49,10 +49,10 @@ twitter     = Twython(APP_KEY, access_token=ACCESS_TOKEN)
 # ---------------------------------------------------------
 #  MongoDB connection
 # ---------------------------------------------------------
-conn = psycopg2.connect("dbname=twitter user=pc")
+conn = psycopg2.connect("dbname=twitter")
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-screen_name  = 'josefrousek'     # The main twitter account
+screen_name  = 'RESPEKT_CZ'     # The main twitter account
 n_max_folwrs = 700          # The number of followers to consider
 
 # ---------------------------------------------------------
@@ -74,9 +74,8 @@ cur.execute("""DELETE FROM followers""")
 for id in flw_ids:
     cur.execute("""INSERT INTO followers(id) VALUES (%s)""", (id, ))
     try:
-        # only retrieve tweets for user if we don't have them in store already
-        cur.execute("SELECT * FROM tweets WHERE user_id = %s", (id, ))
-        twt = cur.fetchall()
+        print("[Log] loading:", id)
+
         handle_rate_limiting()
         params = {'user_id': id, 'count': 200, 'contributor_details': 'true' }
         try:
@@ -85,6 +84,10 @@ for id in flw_ids:
             pass
         # aggregate tweets
         text = ' '.join( [tw['text'] for tw in tl])
+
+        if len(tl) == 0:
+            continue
+
         try:
             item = {
                 'raw_text': text,
@@ -93,9 +96,13 @@ for id in flw_ids:
                 'screen_name': tl[0]['user']['screen_name'],
                 'lang': tl[0]['lang'],
             }
-        except:
-            pass
+        except Exception as e:
+            print("[Exception Raised] Eror constructing entity, skipping. %s", e)
+            continue
 
+
+        cur.execute("SELECT n_tweets FROM tweets WHERE user_id = %s", (id, ))
+        twt = cur.fetchall()
 
         if len(twt) == 0:
             # store document
@@ -104,15 +111,14 @@ for id in flw_ids:
             # update the record
             cur.execute("""UPDATE tweets SET raw_text=%(raw_text)s, n_tweets=%(n_tweets)s, screen_name=%(screen_name)s, lang=%(lang)s WHERE user_id=%(user_id)s""", item)
             print("replaced id ", tl[0]['user']['screen_name'], id, len(tl), tl[0]['lang'])
+
+
     except TwythonRateLimitError as e:
         # Wait if we hit the Rate limit
         reset = int(twitter.get_lastfunction_header('x-rate-limit-reset'))
         wait = max(reset - time.time(), 0) + 10 # addding 10 second pad
         print("[Exception Raised] Rate limit exceeded waiting: %s", wait)
         time.sleep(wait)
-    # except:
-    #     print(" FAILED:", id)
-    #     print("Unexpected error:", sys.exc_info()[0])
 
 conn.commit()
 

@@ -21,6 +21,7 @@ from nltk.tokenize import RegexpTokenizer
 import psycopg2
 import psycopg2.extras
 from string import digits
+from stopwords_czech import stopwords_czech
 
 import psycopg2.extensions
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
@@ -31,7 +32,7 @@ def filter_lang(lang, documents):
     return [documents[k] for k in range(len(documents)) if doclang[k][0] == lang]
 
 
-conn = psycopg2.connect("dbname=twitter user=pc")
+conn = psycopg2.connect("dbname=twitter")
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 cur.execute("SELECT * FROM tweets")
@@ -44,8 +45,8 @@ documents    = [tw['raw_text'] for tw in tweets
                         and ('n_tweets' in tw.keys()) and (tw['n_tweets'] > 2) ]
 
 #  Filter non english documents
-documents = filter_lang('en', documents)
-print("We have " + str(len(documents)) + " documents in english ")
+# documents = filter_lang('en', documents)
+# print("We have " + str(len(documents)) + " documents in english ")
 
 # Remove urls
 documents = [re.sub(r"(?:\@|http?\://)\S+", "", doc)
@@ -71,7 +72,7 @@ stoplist_tw=['amp','get','got','hey','hmm','hoo','hop','iep','let','ooo','par',
 unigrams = [ w for doc in documents for w in doc if len(w)==1]
 bigrams  = [ w for doc in documents for w in doc if len(w)==2]
 
-stoplist  = set(nltk.corpus.stopwords.words("english") + stoplist_tw
+stoplist  = set(nltk.corpus.stopwords.words("english") + stoplist_tw + stopwords_czech
                 + unigrams + bigrams)
 documents = [[token for token in doc if token not in stoplist]
                 for doc in documents]
@@ -107,7 +108,7 @@ for doc in documents:
 dictionary = corpora.Dictionary(documents)
 dictionary.compactify()
 # and save the dictionary for future use
-dictionary.save('alexip_followers_py27.dict')
+dictionary.save('data/twitter.dict')
 
 # We now have a dictionary with 26652 unique tokens
 print(dictionary)
@@ -117,5 +118,5 @@ print(dictionary)
 corpus = [dictionary.doc2bow(doc) for doc in documents]
 
 # and save in Market Matrix format
-corpora.MmCorpus.serialize('alexip_followers_py27.mm', corpus)
-# this corpus can be loaded with corpus = corpora.MmCorpus('alexip_followers.mm')
+corpora.MmCorpus.serialize('data/twitter.mm', corpus)
+# this corpus can be loaded with corpus = corpora.MmCorpus('twitter.mm')
